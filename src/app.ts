@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { FastifyError, FastifySchemaValidationError } from "fastify";
 import { env } from "./config/env";
 import corsPlugin from "./plugins/cors";
 import healthRoute from "./routes/health.route";
@@ -13,14 +13,14 @@ export const buildApp = () => {
   app.register(healthRoute);
   app.register(jobSearchRoute);
 
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     request.log.error({ err: error }, "Request failed");
 
     if (error.validation) {
       reply.status(400).send({
         success: false,
         message: "Validation error",
-        errors: error.validation.map((issue) => ({
+        errors: error.validation.map((issue: FastifySchemaValidationError) => ({
           field: issue.instancePath || issue.params?.missingProperty || "request",
           message: issue.message,
         })),
