@@ -1,0 +1,32 @@
+{
+  "name": "career-agent-api",
+  "version": "1.0.0",
+  "description": "Production-ready Fastify backend for Career Agent API",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nikhildhar1992/job-search-agent-pwa-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nikhildhar1992/job-search-agent-pwa-backend/issues"
+  },
+  "homepage": "https://github.com/nikhildhar1992/job-search-agent-pwa-backend#readme",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "fastify": "^5.8.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
