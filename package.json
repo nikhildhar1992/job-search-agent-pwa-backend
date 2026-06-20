@@ -5,6 +5,8 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:debug": "tsx --inspect src/server.ts",
+    "dev:debug:brk": "tsx --inspect-brk src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js"
   },
@@ -21,7 +23,11 @@
   "homepage": "https://github.com/nikhildhar1992/job-search-agent-pwa-backend#readme",
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@fastify/multipart": "^10.0.0",
+    "dotenv": "^17.4.2",
     "fastify": "^5.8.5",
+    "openai": "^6.42.0",
+    "playwright": "^1.61.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
