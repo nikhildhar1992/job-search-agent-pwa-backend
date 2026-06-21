@@ -1,0 +1,52 @@
+import { extractJobId } from "../services/seen-jobs.service";
+import { JobListing } from "../types/job-search.types";
+
+interface NormalizeJobInput {
+  platform: string;
+  country: string;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  tags: string[];
+  posted?: string;
+  salary?: string;
+  summary?: string;
+  fallbackId?: string;
+}
+
+const isAllCountries = (country: string): boolean => country.trim().toLowerCase() === "all";
+
+export const matchesCountryFilter = (location: string, country: string): boolean => {
+  if (country.trim().length === 0 || isAllCountries(country)) {
+    return true;
+  }
+
+  const normalizedCountry = country.trim().toLowerCase();
+  const normalizedLocation = location.trim().toLowerCase();
+
+  return normalizedLocation.includes(normalizedCountry);
+};
+
+export const normalizeProviderJob = (input: NormalizeJobInput): JobListing => {
+  const safeTitle = input.title.trim();
+  const safeCompany = input.company.trim() || "Unknown company";
+  const safeLocation = input.location.trim() || input.country || "Unknown";
+  const safeUrl = input.url.trim();
+  const id = extractJobId(safeUrl, input.fallbackId);
+
+  return {
+    id,
+    title: safeTitle,
+    company: safeCompany,
+    platform: input.platform,
+    country: input.country || "Unknown",
+    location: safeLocation,
+    salary: input.salary?.trim() || "Not listed",
+    posted: input.posted?.trim() || "Recently",
+    summary: input.summary?.trim() || [safeTitle, safeCompany, safeLocation].join(" — "),
+    tags: input.tags.slice(0, 5),
+    matchScore: 0,
+    url: safeUrl,
+  };
+};

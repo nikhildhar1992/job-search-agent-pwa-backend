@@ -152,7 +152,15 @@ export const generateSearchCriteria = async (
 };
 
 const VOICE_TARGET_COUNTRIES = ["UAE", "Saudi Arabia", "Qatar", "Bahrain", "Kuwait", "All"] as const;
-const VOICE_TARGET_PLATFORMS = ["Naukri Gulf", "GulfTalent", "All"] as const;
+const VOICE_TARGET_PLATFORMS = [
+  "Naukri Gulf",
+  "GulfTalent",
+  "Greenhouse",
+  "Lever",
+  "Ashby",
+  "Workable",
+  "All",
+] as const;
 
 const normalizeVoiceTarget = (value: unknown, allowed: readonly string[]): string => {
   if (typeof value !== "string") {
@@ -191,7 +199,7 @@ export const inferVoiceTargetsFromTranscript = async (
             "Extract the job search country and job board platform from a voice transcript.",
             "Respond ONLY with JSON using exactly these keys:",
             '- country (string, one of: "UAE", "Saudi Arabia", "Qatar", "Bahrain", "Kuwait", "All", or "" if unknown)',
-            '- platform (string, one of: "Naukri Gulf", "GulfTalent", "All", or "" if unknown)',
+            '- platform (string, one of: "Naukri Gulf", "GulfTalent", "Greenhouse", "Lever", "Ashby", "Workable", "All", or "" if unknown)',
           ].join("\n"),
         },
         {

@@ -28,6 +28,22 @@ const COUNTRY_RULES: MatchRule[] = [
 
 const PLATFORM_RULES: MatchRule[] = [
   {
+    canonical: "Greenhouse",
+    aliases: ["greenhouse", "green house"],
+  },
+  {
+    canonical: "Lever",
+    aliases: ["lever", "lever.co"],
+  },
+  {
+    canonical: "Ashby",
+    aliases: ["ashby", "ashbyhq", "ashby h q"],
+  },
+  {
+    canonical: "Workable",
+    aliases: ["workable", "workable.com"],
+  },
+  {
     canonical: "GulfTalent",
     aliases: ["gulf talent", "gulftalent", "gulf talent.com", "gulf talents"],
   },

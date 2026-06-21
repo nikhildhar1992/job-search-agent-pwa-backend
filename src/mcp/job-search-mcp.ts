@@ -1,5 +1,11 @@
 import { FastifyBaseLogger } from "fastify";
 import { mockJobs } from "../data/mock-jobs";
+import { AshbyProvider } from "../providers/ashby/ashby.provider";
+import { GreenhouseProvider } from "../providers/greenhouse/greenhouse.provider";
+import { JobProvider, SearchFilters } from "../providers/job-provider.interface";
+import { loadJobSourcesConfig } from "../providers/job-sources.config";
+import { LeverProvider } from "../providers/lever/lever.provider";
+import { WorkableProvider } from "../providers/workable/workable.provider";
 import { applyMatchScores } from "../services/match-score.service";
 import { searchGulfTalent } from "../services/gulftalent.service";
 import { searchNaukriGulf } from "../services/naukrigulf.service";
@@ -12,10 +18,24 @@ import {
 } from "../services/seen-jobs.service";
 import { JobListing, SearchCriteria } from "../types/job-search.types";
 import { ResumeProfile } from "../types/resume.types";
-import { ScrapedJob } from "../types/scraped-job.types";
-import { resolveJobBoardScrapers, JobBoardScraper, getAlternateScraper, isSinglePlatformSelection } from "../utils/platform-routing";
+import {
+  resolveJobBoardScrapers,
+  JobBoardScraper,
+  getAlternateScraper,
+  isLegacyPlaywrightScraper,
+  isSinglePlatformSelection,
+  toListingPlatform,
+} from "../utils/platform-routing";
 
-export type JobSearchSource = "combined" | "naukrigulf" | "gulftalent" | "mock";
+export type JobSearchSource =
+  | "combined"
+  | "naukrigulf"
+  | "gulftalent"
+  | "greenhouse"
+  | "lever"
+  | "ashby"
+  | "workable"
+  | "mock";
 
 export interface McpJobSearchOptions {
   criteria: SearchCriteria;
@@ -34,7 +54,7 @@ export interface McpJobSearchResult {
   gulftalentCount: number;
 }
 
-const boardCriteria = (criteria: SearchCriteria) => ({
+const boardCriteria = (criteria: SearchCriteria): SearchFilters => ({
   role: criteria.role,
   country: criteria.country,
   skills: criteria.skills,
@@ -42,8 +62,8 @@ const boardCriteria = (criteria: SearchCriteria) => ({
 });
 
 const mapScrapedJobToListing = (
-  job: ScrapedJob,
-  platform: "NaukriGulf" | "GulfTalent",
+  job: { title: string; company: string; location: string; jobUrl: string },
+  platform: JobListing["platform"],
   criteria: SearchCriteria
 ): JobListing => {
   const id = extractJobId(job.jobUrl);
@@ -159,40 +179,72 @@ export const fetchJobsViaMcp = async ({
   );
 
   const searchInput = boardCriteria(criteria);
+  const jobSources = await loadJobSourcesConfig(logger);
 
-  const scrapeByBoard = async (scraper: JobBoardScraper): Promise<ScrapedJob[]> => {
-    if (scraper === "gulftalent") {
-      return searchGulfTalent(searchInput, logger);
-    }
-
-    return searchNaukriGulf(searchInput, logger);
+  const apiProviders: Record<"greenhouse" | "lever" | "ashby" | "workable", JobProvider> = {
+    greenhouse: new GreenhouseProvider(jobSources.greenhouse, logger),
+    lever: new LeverProvider(jobSources.lever, logger),
+    ashby: new AshbyProvider(jobSources.ashby, logger),
+    workable: new WorkableProvider(jobSources.workable, logger),
   };
 
-  const runScraperSafely = async (scraper: JobBoardScraper): Promise<ScrapedJob[]> => {
-    const label = scraper === "gulftalent" ? "GulfTalent" : "NaukriGulf";
+  const scrapeByBoard = async (scraper: JobBoardScraper): Promise<JobListing[]> => {
+    if (scraper === "gulftalent") {
+      const jobs = await searchGulfTalent(searchInput, logger);
+      return jobs.map((job) => mapScrapedJobToListing(job, toListingPlatform(scraper), criteria));
+    }
+
+    if (scraper === "naukrigulf") {
+      const jobs = await searchNaukriGulf(searchInput, logger);
+      return jobs.map((job) => mapScrapedJobToListing(job, toListingPlatform(scraper), criteria));
+    }
+
+    return apiProviders[scraper].searchJobs(searchInput);
+  };
+
+  const runScraperSafely = async (scraper: JobBoardScraper): Promise<JobListing[]> => {
+    const startedAt = Date.now();
 
     try {
+      logger?.info({ provider: scraper, filters: searchInput }, "Provider started");
       const jobs = await scrapeByBoard(scraper);
-      logger?.info({ scraper: label, jobCount: jobs.length }, `${label} scrape completed`);
+      logger?.info(
+        {
+          provider: scraper,
+          durationMs: Date.now() - startedAt,
+          jobCount: jobs.length,
+        },
+        "Provider completed"
+      );
       return jobs;
     } catch (error) {
-      logger?.warn({ err: error, scraper: label }, `${label} scrape failed`);
+      logger?.warn(
+        {
+          err: error,
+          provider: scraper,
+          durationMs: Date.now() - startedAt,
+        },
+        "Provider failed"
+      );
       return [];
     }
   };
 
-  let naukrigulfJobs: ScrapedJob[] = [];
-  let gulftalentJobs: ScrapedJob[] = [];
+  const providerCounts: Record<JobBoardScraper, number> = {
+    naukrigulf: 0,
+    gulftalent: 0,
+    greenhouse: 0,
+    lever: 0,
+    ashby: 0,
+    workable: 0,
+  };
+  const mergedJobs: JobListing[] = [];
   let usedBackupPlatform = false;
 
   for (const scraper of scrapers) {
     const jobs = await runScraperSafely(scraper);
-
-    if (scraper === "gulftalent") {
-      gulftalentJobs = jobs;
-    } else {
-      naukrigulfJobs = jobs;
-    }
+    providerCounts[scraper] = jobs.length;
+    mergedJobs.push(...jobs);
 
     if (scrapers.length > 1) {
       await new Promise((resolve) => setTimeout(resolve, 2_000));
@@ -201,46 +253,36 @@ export const fetchJobsViaMcp = async ({
 
   if (
     isSinglePlatformSelection(platform) &&
-    naukrigulfJobs.length === 0 &&
-    gulftalentJobs.length === 0
+    scrapers.length === 1 &&
+    isLegacyPlaywrightScraper(scrapers[0]) &&
+    mergedJobs.length === 0
   ) {
     const backupScraper = getAlternateScraper(scrapers[0]);
-    const backupLabel = backupScraper === "gulftalent" ? "GulfTalent" : "NaukriGulf";
 
     logger?.warn(
-      { platform, backupScraper: backupLabel },
+      { platform, backupScraper },
       "Primary platform returned no jobs; trying alternate job board"
     );
 
     usedBackupPlatform = true;
     const backupJobs = await runScraperSafely(backupScraper);
-
-    if (backupScraper === "gulftalent") {
-      gulftalentJobs = backupJobs;
-    } else {
-      naukrigulfJobs = backupJobs;
-    }
+    providerCounts[backupScraper] = backupJobs.length;
+    mergedJobs.push(...backupJobs);
   }
 
-  const mergedJobs = [
-    ...naukrigulfJobs.map((job) => mapScrapedJobToListing(job, "NaukriGulf", criteria)),
-    ...gulftalentJobs.map((job) => mapScrapedJobToListing(job, "GulfTalent", criteria)),
-  ];
-
   if (mergedJobs.length > 0) {
+    const activeSources = (Object.entries(providerCounts) as Array<[JobBoardScraper, number]>)
+      .filter(([, count]) => count > 0)
+      .map(([provider]) => provider as JobSearchSource);
+
     const source: JobSearchSource =
-      naukrigulfJobs.length > 0 && gulftalentJobs.length > 0
-        ? "combined"
-        : naukrigulfJobs.length > 0
-          ? "naukrigulf"
-          : "gulftalent";
+      activeSources.length > 1 ? "combined" : (activeSources[0] ?? "combined");
 
     logger?.info(
       {
         source,
         usedBackupPlatform,
-        naukrigulfCount: naukrigulfJobs.length,
-        gulftalentCount: gulftalentJobs.length,
+        providerCounts,
       },
       "MCP job search completed with live results"
     );
@@ -251,8 +293,8 @@ export const fetchJobsViaMcp = async ({
       criteria,
       excludeSeen,
       source,
-      naukrigulfJobs.length,
-      gulftalentJobs.length,
+      providerCounts.naukrigulf,
+      providerCounts.gulftalent,
       logger
     );
   }
