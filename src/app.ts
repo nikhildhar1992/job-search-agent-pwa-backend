@@ -10,6 +10,7 @@ import transcribeRoute from "./routes/transcribe.route";
 export const buildApp = () => {
   const app = Fastify({
     logger: env.NODE_ENV !== "test",
+    trustProxy: true
   });
 
   app.register(corsPlugin);
