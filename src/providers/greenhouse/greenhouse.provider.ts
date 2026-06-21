@@ -1,7 +1,12 @@
 import { FastifyBaseLogger } from "fastify";
 import { JobListing } from "../../types/job-search.types";
 import { JobProvider, SearchFilters } from "../job-provider.interface";
-import { matchesCountryFilter, normalizeProviderJob } from "../provider-normalization";
+import {
+  matchesCountryFilter,
+  normalizeProviderJob,
+  resolveProviderCountry,
+  resolveProviderCountryFilters,
+} from "../provider-normalization";
 
 interface GreenhouseJobLocation {
   name?: string;
@@ -36,6 +41,8 @@ export class GreenhouseProvider implements JobProvider {
 
   private async fetchCompanyJobs(company: string, filters: SearchFilters): Promise<JobListing[]> {
     const jobs: JobListing[] = [];
+    const resolvedCountry = resolveProviderCountry("greenhouse", filters.country);
+    const countryFilters = resolveProviderCountryFilters("greenhouse", filters.country);
 
     for (let page = 1; page <= MAX_PAGES_PER_COMPANY; page += 1) {
       const url = `${GREENHOUSE_BASE_URL}/${company}/jobs?page=${page}&content=true&per_page=${PAGE_SIZE}`;
@@ -63,7 +70,7 @@ export class GreenhouseProvider implements JobProvider {
         }
 
         const location = job.location?.name?.trim() ?? "";
-        if (!matchesCountryFilter(location, filters.country)) {
+        if (!matchesCountryFilter(location, countryFilters)) {
           continue;
         }
 
@@ -75,7 +82,7 @@ export class GreenhouseProvider implements JobProvider {
         jobs.push(
           normalizeProviderJob({
             platform: "Greenhouse",
-            country: filters.country,
+            country: resolvedCountry,
             title,
             company,
             location,

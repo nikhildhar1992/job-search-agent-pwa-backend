@@ -1,3 +1,8 @@
+import {
+  getConfiguredCountries,
+  getCountryAliases,
+  resolveCountryForPlatform,
+} from "../config/platform.config";
 import { extractJobId } from "../services/seen-jobs.service";
 import { JobListing } from "../types/job-search.types";
 
@@ -17,15 +22,39 @@ interface NormalizeJobInput {
 
 const isAllCountries = (country: string): boolean => country.trim().toLowerCase() === "all";
 
-export const matchesCountryFilter = (location: string, country: string): boolean => {
-  if (country.trim().length === 0 || isAllCountries(country)) {
+const normalize = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+export const resolveProviderCountry = (platform: string, requestedCountry: string): string =>
+  resolveCountryForPlatform(platform, requestedCountry);
+
+export const resolveProviderCountryFilters = (
+  platform: string,
+  requestedCountry: string
+): string[] => {
+  if (requestedCountry.trim().toLowerCase() === "all") {
+    return getConfiguredCountries(platform);
+  }
+
+  const resolved = resolveProviderCountry(platform, requestedCountry);
+  return resolved ? [resolved] : getConfiguredCountries(platform);
+};
+
+export const matchesCountryFilter = (location: string, countries: string[]): boolean => {
+  if (countries.length === 0) {
     return true;
   }
 
-  const normalizedCountry = country.trim().toLowerCase();
-  const normalizedLocation = location.trim().toLowerCase();
+  const normalizedLocation = normalize(location);
 
-  return normalizedLocation.includes(normalizedCountry);
+  return countries.some((country) =>
+    getCountryAliases(country).some((alias) => normalizedLocation.includes(alias))
+  );
 };
 
 export const normalizeProviderJob = (input: NormalizeJobInput): JobListing => {

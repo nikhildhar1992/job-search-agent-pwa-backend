@@ -1,6 +1,6 @@
 export interface JobSearchRequestBody {
   platform: string;
-  country: string;
+  country?: string;
   count: number;
   prompt?: string;
   excludeSeen?: boolean;

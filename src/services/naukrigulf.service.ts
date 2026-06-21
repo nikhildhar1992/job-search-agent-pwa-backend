@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { FastifyBaseLogger } from "fastify";
 import { firefox, type Browser, type Page } from "playwright";
+import { getCountryAliases, resolveCountryForPlatform } from "../config/platform.config";
 import {
   NaukriGulfJob,
   NaukriGulfSearchCriteria,
@@ -35,25 +36,16 @@ const slugify = (value: string): string =>
     .replace(/^-|-$/g, "");
 
 const normalizeLocationSlug = (country: string): string => {
-  const normalized = country.trim().toLowerCase();
+  const aliases = getCountryAliases(country)
+    .map((alias) => alias.replace(/\s+/g, ""))
+    .filter(Boolean);
+  const shortAlias = aliases.find((alias) => alias.length <= 4);
 
-  const locationAliases: Record<string, string> = {
-    uae: "uae",
-    "united arab emirates": "uae",
-    dubai: "dubai",
-    "abu dhabi": "abu-dhabi",
-    "saudi arabia": "saudi-arabia",
-    qatar: "qatar",
-    kuwait: "kuwait",
-    bahrain: "bahrain",
-    oman: "oman",
-    india: "india",
-    germany: "germany",
-    "united kingdom": "united-kingdom",
-    uk: "united-kingdom",
-  };
+  if (shortAlias) {
+    return slugify(shortAlias);
+  }
 
-  return locationAliases[normalized] ?? slugify(country);
+  return slugify(country);
 };
 
 const buildSkillsSlug = (criteria: NaukriGulfSearchCriteria, maxSkills = MAX_SKILLS_IN_SLUG): string => {
@@ -72,10 +64,7 @@ const buildSkillsSlug = (criteria: NaukriGulfSearchCriteria, maxSkills = MAX_SKI
  * returns an "Oops" error page when too many skills are joined in one slug.
  */
 const buildSearchUrls = (criteria: NaukriGulfSearchCriteria): string[] => {
-  const country = criteria.country.trim();
-  const normalizedCountry = country.toLowerCase();
-  const effectiveCountry =
-    normalizedCountry.length === 0 || normalizedCountry === "all" ? "uae" : country;
+  const effectiveCountry = resolveCountryForPlatform("naukrigulf", criteria.country) || criteria.country;
   const locationSuffix = `-jobs-in-${normalizeLocationSlug(effectiveCountry)}`;
 
   const candidateSlugs: string[] = [];

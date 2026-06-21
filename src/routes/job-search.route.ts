@@ -15,7 +15,7 @@ const jobSearchRoute: FastifyPluginAsync = async (app) => {
             prompt: { type: "string", minLength: 1 },
             excludeSeen: { type: "boolean" },
           },
-          required: ["platform", "country", "count"],
+          required: ["platform", "count"],
           additionalProperties: false,
         },
         response: {

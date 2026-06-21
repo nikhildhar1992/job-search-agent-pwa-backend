@@ -1,7 +1,12 @@
 import { FastifyBaseLogger } from "fastify";
 import { JobListing } from "../../types/job-search.types";
 import { JobProvider, SearchFilters } from "../job-provider.interface";
-import { matchesCountryFilter, normalizeProviderJob } from "../provider-normalization";
+import {
+  matchesCountryFilter,
+  normalizeProviderJob,
+  resolveProviderCountry,
+  resolveProviderCountryFilters,
+} from "../provider-normalization";
 
 interface AshbyJobEntry {
   id?: string;
@@ -93,6 +98,8 @@ export class AshbyProvider implements JobProvider {
   }
 
   private async fetchCompanyJobs(company: string, filters: SearchFilters): Promise<JobListing[]> {
+    const resolvedCountry = resolveProviderCountry("ashby", filters.country);
+    const countryFilters = resolveProviderCountryFilters("ashby", filters.country);
     const payload = await this.fetchCompanyPayload(company);
     const jobs = extractAshbyJobs(payload);
 
@@ -105,7 +112,7 @@ export class AshbyProvider implements JobProvider {
         }
 
         const location = (job.location ?? job.locationName ?? "").trim();
-        if (!matchesCountryFilter(location, filters.country)) {
+        if (!matchesCountryFilter(location, countryFilters)) {
           return null;
         }
 
@@ -113,7 +120,7 @@ export class AshbyProvider implements JobProvider {
 
         return normalizeProviderJob({
           platform: "Ashby",
-          country: filters.country,
+          country: resolvedCountry,
           title,
           company,
           location,

@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import { resolveCountryForPlatform } from "../config/platform.config";
 import { fetchJobsViaMcp } from "../mcp/job-search-mcp";
 import { generateSearchCriteria } from "../services/openai.service";
 import { getResumeProfile } from "../services/resume.service";
@@ -11,17 +12,16 @@ export const searchJobs = async (request: JobSearchRequest, reply: FastifyReply)
 
   try {
     const profile = await getResumeProfile();
+    const resolvedCountry = resolveCountryForPlatform(platform, country);
 
     const searchCriteria = await generateSearchCriteria(
       prompt,
       profile,
-      { platform, country, count },
+      { platform, country: resolvedCountry, count },
       request.log
     );
 
-    if (country !== "All") {
-      searchCriteria.country = country;
-    }
+    searchCriteria.country = resolvedCountry;
 
     if (count > 0) {
       searchCriteria.count = count;
@@ -41,6 +41,8 @@ export const searchJobs = async (request: JobSearchRequest, reply: FastifyReply)
     request.log.info(
       {
         platform,
+        requestedCountry: country,
+        resolvedCountry,
         source,
         jobCount: jobs.length,
         naukrigulfCount,

@@ -1,7 +1,12 @@
 import { FastifyBaseLogger } from "fastify";
 import { JobListing } from "../../types/job-search.types";
 import { JobProvider, SearchFilters } from "../job-provider.interface";
-import { matchesCountryFilter, normalizeProviderJob } from "../provider-normalization";
+import {
+  matchesCountryFilter,
+  normalizeProviderJob,
+  resolveProviderCountry,
+  resolveProviderCountryFilters,
+} from "../provider-normalization";
 
 interface LeverPostingCategories {
   location?: string;
@@ -24,6 +29,8 @@ export class LeverProvider implements JobProvider {
   ) {}
 
   private async fetchCompanyJobs(company: string, filters: SearchFilters): Promise<JobListing[]> {
+    const resolvedCountry = resolveProviderCountry("lever", filters.country);
+    const countryFilters = resolveProviderCountryFilters("lever", filters.country);
     const url = `${LEVER_BASE_URL}/${company}?mode=json`;
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
@@ -44,7 +51,7 @@ export class LeverProvider implements JobProvider {
         }
 
         const location = posting.categories?.location?.trim() ?? "";
-        if (!matchesCountryFilter(location, filters.country)) {
+        if (!matchesCountryFilter(location, countryFilters)) {
           return null;
         }
 
@@ -52,7 +59,7 @@ export class LeverProvider implements JobProvider {
 
         return normalizeProviderJob({
           platform: "Lever",
-          country: filters.country,
+          country: resolvedCountry,
           title,
           company,
           location,

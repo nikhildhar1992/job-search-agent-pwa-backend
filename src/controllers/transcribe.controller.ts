@@ -1,4 +1,5 @@
 import { FastifyReply, FastifyRequest } from "fastify";
+import { resolveCountryForPlatform } from "../config/platform.config";
 import { inferVoiceTargetsFromTranscript } from "../services/openai.service";
 import { transcribeAudio } from "../services/transcription.service";
 import { TranscribeResult } from "../types/transcribe.types";
@@ -39,6 +40,10 @@ export const transcribe = async (request: FastifyRequest, reply: FastifyReply) =
     const inferred = await inferVoiceTargetsFromTranscript(transcript, request.log);
     country = country || inferred.country;
     platform = platform || inferred.platform;
+  }
+
+  if (!country && platform) {
+    country = resolveCountryForPlatform(platform);
   }
 
   const result: TranscribeResult = {

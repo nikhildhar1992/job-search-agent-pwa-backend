@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { FastifyBaseLogger } from "fastify";
 import { firefox, type Browser, type Page } from "playwright";
+import { getCountryAliases, resolveCountryForPlatform } from "../config/platform.config";
 import { ScrapedJob, ScrapedJobSearchCriteria } from "../types/scraped-job.types";
 
 const GULFTALENT_BASE_URL = "https://www.gulftalent.com";
@@ -16,24 +17,7 @@ const JOB_ROW_MARKER = '<tr class="content-visibility-auto"';
 const JOB_LINK_SELECTOR = 'a.ga-job-impression[data-cy="job-link"]';
 const DEBUG_HTML_PATH = "debug/gulftalent.html";
 
-const GULFTALENT_COUNTRY_IDS: Record<string, string> = {
-  uae: "10111111000000",
-  "united arab emirates": "10111111000000",
-  dubai: "10111111000000",
-  "abu dhabi": "10111111000000",
-  sharjah: "10111111000000",
-  ajman: "10111111000000",
-  "saudi arabia": "10111112000000",
-  saudi: "10111112000000",
-  ksa: "10111112000000",
-  riyadh: "10111112000000",
-  jeddah: "10111112000000",
-  qatar: "10111114000000",
-  doha: "10111114000000",
-  kuwait: "10111113000000",
-  bahrain: "10111115000000",
-  oman: "10111116000000",
-};
+const GULFTALENT_DEFAULT_COUNTRY_ID = "10111111000000";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -49,12 +33,12 @@ const slugify = (value: string): string =>
     .replace(/^-|-$/g, "");
 
 const resolveCountryId = (country: string): string => {
-  const normalized = country.trim().toLowerCase();
-  if (normalized.length === 0 || normalized === "all") {
+  const resolvedCountry = resolveCountryForPlatform("gulftalent", country);
+  if (!resolvedCountry) {
     return "";
   }
 
-  return GULFTALENT_COUNTRY_IDS[normalized] ?? "";
+  return GULFTALENT_DEFAULT_COUNTRY_ID;
 };
 
 const hasGulfTalentCountryFilter = (country: string): boolean =>
@@ -128,37 +112,27 @@ const toAbsoluteUrl = (url: string): string => {
 };
 
 const normalizeCountrySlug = (country: string): string => {
-  const normalized = country.trim().toLowerCase();
-
-  const aliases: Record<string, string> = {
-    uae: "uae",
-    "united arab emirates": "uae",
-    dubai: "uae",
-    "abu dhabi": "uae",
-    "saudi arabia": "saudi-arabia",
-    qatar: "qatar",
-    kuwait: "kuwait",
-    bahrain: "bahrain",
-    oman: "oman",
-  };
-
-  return aliases[normalized] ?? slugify(country);
+  const resolvedCountry = resolveCountryForPlatform("gulftalent", country);
+  return slugify(resolvedCountry || country);
 };
 
 const matchesCountry = (job: ScrapedJob, country: string): boolean => {
-  const normalizedCountry = country.trim().toLowerCase();
-  if (normalizedCountry.length === 0 || normalizedCountry === "all") {
+  const resolvedCountry = resolveCountryForPlatform("gulftalent", country);
+  if (!resolvedCountry) {
     return true;
   }
 
-  const countrySlug = normalizeCountrySlug(country);
+  const countrySlug = normalizeCountrySlug(resolvedCountry);
   const haystack = `${job.jobUrl} ${job.location}`.toLowerCase();
+  const normalizedAliases = getCountryAliases(resolvedCountry).map((alias) =>
+    alias.replace(/\s+/g, "-")
+  );
 
   if (haystack.includes(`/${countrySlug}/`)) {
     return true;
   }
 
-  return haystack.includes(normalizedCountry);
+  return normalizedAliases.some((alias) => haystack.includes(alias));
 };
 
 const extractJobUrl = (row: string): string => {

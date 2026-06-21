@@ -1,6 +1,13 @@
 import { FastifyBaseLogger } from "fastify";
 import OpenAI from "openai";
 import { env } from "../config/env";
+import {
+  getAllConfiguredCountries,
+  getConfiguredCountries,
+  getPlatformLabel,
+  PLATFORM_CONFIG,
+  resolveCountryForPlatform,
+} from "../config/platform.config";
 import { SearchCriteria } from "../types/job-search.types";
 import { ResumeProfile } from "../types/resume.types";
 import { VoiceTargetHints } from "../types/transcribe.types";
@@ -42,37 +49,50 @@ const buildSystemPrompt = (): string =>
   ].join("\n");
 
 const buildUserPrompt = (prompt: string, profile: ResumeProfile, defaults: CriteriaDefaults): string =>
-  [
-    "User request:",
-    prompt.trim().length > 0 ? prompt.trim() : "(no specific prompt provided)",
-    "",
-    "Target job board:",
-    defaults.platform.trim().length > 0 ? defaults.platform : "(not specified)",
-    "Target country:",
-    defaults.country.trim().length > 0 ? defaults.country : "(not specified)",
-    "Requested result count:",
-    String(defaults.count),
-    "",
-    "Resume profile (JSON):",
-    JSON.stringify(profile),
-  ].join("\n");
+  (() => {
+    const platformCountries = getConfiguredCountries(defaults.platform);
+    return [
+      "User request:",
+      prompt.trim().length > 0 ? prompt.trim() : "(no specific prompt provided)",
+      "",
+      "Target job board:",
+      defaults.platform.trim().length > 0 ? defaults.platform : "(not specified)",
+      "Allowed countries for this platform:",
+      platformCountries.length > 0 ? platformCountries.join(", ") : "(not specified)",
+      "Target country:",
+      defaults.country.trim().length > 0 ? defaults.country : "(not specified)",
+      "Requested result count:",
+      String(defaults.count),
+      "",
+      "Resume profile (JSON):",
+      JSON.stringify(profile),
+    ];
+  })().join("\n");
 
 const buildFallbackCriteria = (
   profile: ResumeProfile,
   defaults: CriteriaDefaults
-): SearchCriteria => ({
-  role: profile.currentTitle,
-  skills: profile.coreSkills.slice(0, 5),
-  country:
-    defaults.country === ALL_FILTER_VALUE
-      ? profile.preferredCountries[0] ?? ""
-      : defaults.country,
-  count: defaults.count,
-  remote: profile.preferredLocations.some((location) => location.toLowerCase() === "remote"),
-  salaryMin: null,
-});
+): SearchCriteria => {
+  const resolvedCountry = resolveCountryForPlatform(
+    defaults.platform,
+    defaults.country === ALL_FILTER_VALUE ? "" : defaults.country
+  );
 
-const normalizeCriteria = (parsed: unknown, fallback: SearchCriteria): SearchCriteria => {
+  return {
+    role: profile.currentTitle,
+    skills: profile.coreSkills.slice(0, 5),
+    country: resolvedCountry || profile.preferredCountries[0] || "",
+    count: defaults.count,
+    remote: profile.preferredLocations.some((location) => location.toLowerCase() === "remote"),
+    salaryMin: null,
+  };
+};
+
+const normalizeCriteria = (
+  parsed: unknown,
+  fallback: SearchCriteria,
+  defaults: CriteriaDefaults
+): SearchCriteria => {
   if (typeof parsed !== "object" || parsed === null) {
     return fallback;
   }
@@ -87,7 +107,7 @@ const normalizeCriteria = (parsed: unknown, fallback: SearchCriteria): SearchCri
       : fallback.skills,
     country:
       typeof data.country === "string" && data.country.trim().length > 0
-        ? data.country
+        ? resolveCountryForPlatform(defaults.platform, data.country)
         : fallback.country,
     count:
       typeof data.count === "number" && Number.isFinite(data.count) && data.count > 0
@@ -144,23 +164,24 @@ export const generateSearchCriteria = async (
       return fallbackCriteria;
     }
 
-    return normalizeCriteria(parsed, fallbackCriteria);
+    return normalizeCriteria(parsed, fallbackCriteria, defaults);
   } catch (error) {
     logger?.error({ err: error }, "OpenAI request failed; returning fallback search criteria");
     return fallbackCriteria;
   }
 };
 
-const VOICE_TARGET_COUNTRIES = ["UAE", "Saudi Arabia", "Qatar", "Bahrain", "Kuwait", "All"] as const;
+const VOICE_TARGET_COUNTRIES = [...new Set([...getAllConfiguredCountries(), "All"])];
 const VOICE_TARGET_PLATFORMS = [
-  "Naukri Gulf",
-  "GulfTalent",
-  "Greenhouse",
-  "Lever",
-  "Ashby",
-  "Workable",
-  "All",
-] as const;
+  ...new Set(
+    [
+      ...(Object.keys(PLATFORM_CONFIG) as Array<keyof typeof PLATFORM_CONFIG>).map((key) =>
+        getPlatformLabel(key)
+      ),
+      "All",
+    ].filter(Boolean)
+  ),
+];
 
 const normalizeVoiceTarget = (value: unknown, allowed: readonly string[]): string => {
   if (typeof value !== "string") {
@@ -198,8 +219,8 @@ export const inferVoiceTargetsFromTranscript = async (
           content: [
             "Extract the job search country and job board platform from a voice transcript.",
             "Respond ONLY with JSON using exactly these keys:",
-            '- country (string, one of: "UAE", "Saudi Arabia", "Qatar", "Bahrain", "Kuwait", "All", or "" if unknown)',
-            '- platform (string, one of: "Naukri Gulf", "GulfTalent", "Greenhouse", "Lever", "Ashby", "Workable", "All", or "" if unknown)',
+            `- country (string, one of: "${VOICE_TARGET_COUNTRIES.join('", "')}", or "" if unknown)`,
+            `- platform (string, one of: "${VOICE_TARGET_PLATFORMS.join('", "')}", or "" if unknown)`,
           ].join("\n"),
         },
         {
