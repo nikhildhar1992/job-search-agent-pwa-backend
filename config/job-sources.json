@@ -1,0 +1,6 @@
+{
+  "greenhouse": ["stripe", "datadog", "cloudflare", "canva", "mongodb", "shopify"],
+  "lever": ["netlify", "figma", "sourcegraph"],
+  "ashby": ["openai", "airbyte"],
+  "workable": []
+}

@@ -1,0 +1,155 @@
+{
+    "name": "Nikhil Dhar",
+    "currentTitle": "Lead Full Stack Engineer",
+    "secondaryTitle": "Associate Product Manager",
+    "totalExperienceYears": 9,
+    "seniorityLevel": "Lead",
+    "currentLocation": "Mohali, India",
+  
+    "targetRoles": [
+      "Lead Full Stack Engineer",
+      "Engineering Manager",
+      "Technical Lead",
+      "Software Engineering Manager",
+      "Backend Lead",
+      "Lead Node.js Engineer",
+      "Principal Full Stack Engineer",
+      "Solutions Architect",
+      "System Architect",
+      "Associate Product Manager",
+      "Technical Product Manager"
+    ],
+  
+    "coreSkills": [
+      "Node.js",
+      "TypeScript",
+      "Angular",
+      "React",
+      "AWS",
+      "Redis",
+      "Docker",
+      "REST API",
+      "Microservices",
+      "System Design",
+      "Distributed Systems",
+      "MySQL",
+      "BullMQ"
+    ],
+  
+    "aiSkills": [
+      "OpenAI API",
+      "Google Gemini API",
+      "RAG",
+      "Vector Embeddings",
+      "Semantic Search",
+      "Prompt Engineering",
+      "Cursor API",
+      "AI Automation"
+    ],
+  
+    "cloudSkills": [
+      "AWS Amplify",
+      "AWS EC2",
+      "AWS Lambda",
+      "Docker",
+      "GitHub Actions"
+    ],
+  
+    "leadershipSkills": [
+      "Engineering Leadership",
+      "Technical Roadmaps",
+      "Architecture Design",
+      "Product Strategy",
+      "Team Management",
+      "Cross Functional Collaboration",
+      "Mentoring"
+    ],
+  
+    "domainExperience": [
+      "Fintech",
+      "Healthcare",
+      "SaaS"
+    ],
+  
+    "integrations": [
+      "Stripe",
+      "Apple Pay",
+      "Google Pay",
+      "QuickBooks",
+      "Twilio",
+      "Credit Bureau APIs"
+    ],
+  
+    "preferredCountries": [
+      "UAE",
+      "Finland",
+      "Germany",
+      "New Zealand"
+    ],
+  
+    "preferredLocations": [
+      "Dubai",
+      "Abu Dhabi",
+      "Remote"
+    ],
+  
+    "preferredEmploymentTypes": [
+      "Full Time",
+      "Permanent"
+    ],
+  
+    "mustHaveKeywords": [
+      "Node.js",
+      "TypeScript",
+      "Angular",
+      "React",
+      "AWS"
+    ],
+  
+    "niceToHaveKeywords": [
+      "Architecture",
+      "Leadership",
+      "Engineering Manager",
+      "Microservices",
+      "Distributed Systems",
+      "AI",
+      "Product Management",
+      "Fintech"
+    ],
+  
+    "excludedKeywords": [
+      "Intern",
+      "Trainee",
+      "Junior",
+      "Fresher",
+      "Support Engineer",
+      "L1 Support",
+      "BPO"
+    ],
+  
+    "targetSalary": {
+      "uae": {
+        "currency": "AED",
+        "minimumMonthly": 25000
+      }
+    },
+  
+    "companyPreferences": {
+      "minimumEmployees": 200,
+      "preferredIndustries": [
+        "Fintech",
+        "Healthcare",
+        "SaaS",
+        "Technology"
+      ]
+    },
+  
+    "matchScoringWeights": {
+      "roleMatch": 25,
+      "skillsMatch": 30,
+      "leadershipMatch": 15,
+      "domainMatch": 10,
+      "locationMatch": 10,
+      "salaryMatch": 10
+    }
+  }
