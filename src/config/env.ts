@@ -15,6 +15,7 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().default("gpt-4o-mini"),
   OPENAI_WHISPER_MODEL: z.string().default("whisper-1"),
   OPENAI_WHISPER_LANGUAGE: z.string().default("en"),
+  JOBPASSWORD: z.string().min(1).optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

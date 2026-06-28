@@ -2,6 +2,7 @@ import multipart from "@fastify/multipart";
 import Fastify, { FastifyError, FastifySchemaValidationError } from "fastify";
 import { env } from "./config/env";
 import corsPlugin from "./plugins/cors";
+import accessRoute from "./routes/access.route";
 import healthRoute from "./routes/health.route";
 import jobSearchRoute from "./routes/job-search.route";
 import profileRoute from "./routes/profile.route";
@@ -23,6 +24,7 @@ export const buildApp = () => {
     },
   });
   app.register(healthRoute);
+  app.register(accessRoute);
   app.register(jobSearchRoute);
   app.register(profileRoute);
   app.register(transcribeRoute);
