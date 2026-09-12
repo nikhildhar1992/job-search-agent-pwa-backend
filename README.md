@@ -1,6 +1,6 @@
 # Job Search Agent — Backend API
 
-git checkout cursor/fastify-backend-2f5e
+git checkout job-search-agent
 
 A **Fastify + TypeScript** API that powers the Job Search Agent PWA. It takes a natural-language (or voice) job search request, turns it into structured search criteria with OpenAI, fetches matching jobs from multiple job platforms, scores them against a candidate's resume profile, and returns a ranked list.
 
